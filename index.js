@@ -47,6 +47,10 @@ var functions = {
     amount = parseFloat(amount.trim())
     var alpha = Math.round((color.alpha() + amount) * 100) / 100;
     return color.alpha(alpha).rgbString();
+  },
+  lightness: function(color) {
+    color = Color(toSimpleColor(color));
+    return color.hsl().l;
   }
 };
 
@@ -66,20 +70,29 @@ var functionsRegex = new RegExp(
   }, false) +
   ")\\(");
 
+function transform(str, source) {
+  if (!str || !functionsRegex.test(str)) {
+    return str;
+  }
+
+  return helpers.try(function() {
+    return handleFunction(str, source);
+  }, source)
+}
+
 /**
  * PostCSS plugin to transform color()
  */
 module.exports = postcss.plugin("postcss-sass-color-functions", function() {
   return function(style) {
-    style.walkDecls(function transformDecl(decl) {
-      if (!decl.value || !functionsRegex.test(decl.value)) {
-        return;
+    style.walk(function(node) {
+      if (node.params) {
+        node.params = transform(node.params, node.source);
       }
-
-      decl.value = helpers.try(function() {
-        return handleFunction(decl.value, decl.source);
-      }, decl.source)
-    })
+      if (node.value) {
+        node.value = transform(node.value, node.source);
+      }
+    });
   }
 });
 
